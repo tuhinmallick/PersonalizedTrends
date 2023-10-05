@@ -36,7 +36,7 @@ def resblock_body(x, num_filters, num_blocks):
     # Darknet uses left and top padding instead of 'same' mode
     x = ZeroPadding2D(((1,0),(1,0)))(x)
     x = DarknetConv2D_BN_Leaky(num_filters, (3,3), strides=(2,2))(x)
-    for i in range(num_blocks):
+    for _ in range(num_blocks):
         y = compose(
                 DarknetConv2D_BN_Leaky(num_filters//2, (1,1)),
                 DarknetConv2D_BN_Leaky(num_filters, (3,3)))(x)
@@ -337,9 +337,7 @@ def box_iou(b1, b2):
     intersect_area = intersect_wh[..., 0] * intersect_wh[..., 1]
     b1_area = b1_wh[..., 0] * b1_wh[..., 1]
     b2_area = b2_wh[..., 0] * b2_wh[..., 1]
-    iou = intersect_area / (b1_area + b2_area - intersect_area)
-
-    return iou
+    return intersect_area / (b1_area + b2_area - intersect_area)
 
 
 def yolo_loss(args, anchors, num_classes, ignore_thresh=.5, print_loss=False):

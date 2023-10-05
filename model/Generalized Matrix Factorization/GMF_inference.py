@@ -52,30 +52,20 @@ def get_model(num_users, num_items, latent_dim, regs=[0, 0]):
 
     prediction = Dense(1, activation='sigmoid', kernel_initializer='lecun_uniform', name='prediction')(predict_vector)
 
-    model = Model(inputs=[user_input, item_input],
-                  outputs=prediction)
-
-    return model
+    return Model(inputs=[user_input, item_input], outputs=prediction)
 
 
    
 def predict_item_score(user):
-    map_item_score = {}
     user_index = np.full(itemnum, user, dtype = 'int32')
-    items_index = np.arange(0, itemnum, 1, np.int) 
+    items_index = np.arange(0, itemnum, 1, np.int)
     predictions = model.predict([user_index, items_index],batch_size=itemnum, verbose=0)
-    
-    for i in range(len(items_index)):
-        map_item_score[i] = predictions[i]
-    
+
+    map_item_score = {i: predictions[i] for i in range(len(items_index))}
     # top-k 
     rank_cosmetic_list = heapq.nlargest(topK, map_item_score, key=map_item_score.get)
-    
-    real_rank_cosmetic_list=[]
-    for i in rank_cosmetic_list:
-        real_rank_cosmetic_list.append(product_name[str(i)])
-    
-    return real_rank_cosmetic_list
+
+    return [product_name[str(i)] for i in rank_cosmetic_list]
 
 
 if __name__ == '__main__':
@@ -85,32 +75,32 @@ if __name__ == '__main__':
     gmf_pretrain = args.GMF_pretrain
     user = args.user
     topK = args.topk
-    
+
     evaluation_threads = 1
 
 
     """ Load data """
-    
+
     t1 = time()
     dataset = open('../dataset/amazon_raw2inner_dict.json',encoding='utf-8-sig').read()
     js=json.loads(dataset)
     usernum,itemnum,product_name = len(js['user_dict']), len(js['product_dict']), js['product_dict']
     print("Load dict done [%.1f s]. #user=%d, #item=%d"
           % (time() - t1, usernum, itemnum))
-    
-    
+
+
     """ Load pretrain model"""
-    
+
     model = get_model(usernum, itemnum, num_factors, regs)
     model.load_weights(gmf_pretrain)
-    print("Load pretrained gmf (%s) models done. " %(gmf_pretrain))
+    print(f"Load pretrained gmf ({gmf_pretrain}) models done. ")
 
-    
+
     print('\t')
-    print("User %s's top-%s recommendation" %(user,topK))
+    print(f"User {user}'s top-{topK} recommendation")
     print('\t')
     for i in range(topK):
-        print("%s. %s" %(i+1,predict_item_score(user)[i]))
+        print(f"{i + 1}. {predict_item_score(user)[i]}")
 
     
     

@@ -42,68 +42,68 @@ def _main():
     num_val = int(len(lines)*val_split)
     num_train = len(lines) - num_val
 
-    # Train with frozen layers first, to get a stable loss.
-    # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
-    if True:
-        # perform bottleneck training
-        if not os.path.isfile("bottlenecks.npz"):
-            print("calculating bottlenecks")
-            batch_size=8
-            bottlenecks=bottleneck_model.predict_generator(data_generator_wrapper(lines, batch_size, input_shape, anchors, num_classes, random=False, verbose=True),
-             steps=(len(lines)//batch_size)+1, max_queue_size=1)
-            np.savez("bottlenecks.npz", bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
-    
-        # load bottleneck features from file
-        dict_bot=np.load("bottlenecks.npz")
-        bottlenecks_train=[dict_bot["bot0"][:num_train], dict_bot["bot1"][:num_train], dict_bot["bot2"][:num_train]]
-        bottlenecks_val=[dict_bot["bot0"][num_train:], dict_bot["bot1"][num_train:], dict_bot["bot2"][num_train:]]
-
-        # train last layers with fixed bottleneck features
+    # perform bottleneck training
+    if not os.path.isfile("bottlenecks.npz"):
+        print("calculating bottlenecks")
         batch_size=8
-        print("Training last layers with bottleneck features")
-        print('with {} samples, val on {} samples and batch size {}.'.format(num_train, num_val, batch_size))
-        last_layer_model.compile(optimizer='adam', loss={'yolo_loss': lambda y_true, y_pred: y_pred})
-        last_layer_model.fit_generator(bottleneck_generator(lines[:num_train], batch_size, input_shape, anchors, num_classes, bottlenecks_train),
-                steps_per_epoch=max(1, num_train//batch_size),
-                validation_data=bottleneck_generator(lines[num_train:], batch_size, input_shape, anchors, num_classes, bottlenecks_val),
-                validation_steps=max(1, num_val//batch_size),
-                epochs=30,
-                initial_epoch=0, max_queue_size=1)
-        model.save_weights(log_dir + 'trained_weights_stage_0.h5')
-        
-        # train last layers with random augmented data
-        model.compile(optimizer=Adam(lr=1e-3), loss={
-            # use custom yolo_loss Lambda layer.
-            'yolo_loss': lambda y_true, y_pred: y_pred})
-        batch_size = 16
-        print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-        model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
-                steps_per_epoch=max(1, num_train//batch_size),
-                validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
-                validation_steps=max(1, num_val//batch_size),
-                epochs=50,
-                initial_epoch=0,
-                callbacks=[logging, checkpoint])
-        model.save_weights(log_dir + 'trained_weights_stage_1.h5')
+        bottlenecks=bottleneck_model.predict_generator(data_generator_wrapper(lines, batch_size, input_shape, anchors, num_classes, random=False, verbose=True),
+         steps=(len(lines)//batch_size)+1, max_queue_size=1)
+        np.savez("bottlenecks.npz", bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
 
-    # Unfreeze and continue training, to fine-tune.
-    # Train longer if the result is not good.
-    if True:
-        for i in range(len(model.layers)):
-            model.layers[i].trainable = True
-        model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-        print('Unfreeze all of the layers.')
+    # load bottleneck features from file
+    dict_bot=np.load("bottlenecks.npz")
+    bottlenecks_train=[dict_bot["bot0"][:num_train], dict_bot["bot1"][:num_train], dict_bot["bot2"][:num_train]]
+    bottlenecks_val=[dict_bot["bot0"][num_train:], dict_bot["bot1"][num_train:], dict_bot["bot2"][num_train:]]
 
-        batch_size = 4 # note that more GPU memory is required after unfreezing the body
-        print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-        model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
+    # train last layers with fixed bottleneck features
+    batch_size=8
+    print("Training last layers with bottleneck features")
+    print(
+        f'with {num_train} samples, val on {num_val} samples and batch size {batch_size}.'
+    )
+    last_layer_model.compile(optimizer='adam', loss={'yolo_loss': lambda y_true, y_pred: y_pred})
+    last_layer_model.fit_generator(bottleneck_generator(lines[:num_train], batch_size, input_shape, anchors, num_classes, bottlenecks_train),
+            steps_per_epoch=max(1, num_train//batch_size),
+            validation_data=bottleneck_generator(lines[num_train:], batch_size, input_shape, anchors, num_classes, bottlenecks_val),
+            validation_steps=max(1, num_val//batch_size),
+            epochs=30,
+            initial_epoch=0, max_queue_size=1)
+    model.save_weights(f'{log_dir}trained_weights_stage_0.h5')
+
+    # train last layers with random augmented data
+    model.compile(optimizer=Adam(lr=1e-3), loss={
+        # use custom yolo_loss Lambda layer.
+        'yolo_loss': lambda y_true, y_pred: y_pred})
+    batch_size = 16
+    print(
+        f'Train on {num_train} samples, val on {num_val} samples, with batch size {batch_size}.'
+    )
+    model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
             steps_per_epoch=max(1, num_train//batch_size),
             validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
             validation_steps=max(1, num_val//batch_size),
-            epochs=100,
-            initial_epoch=50,
-            callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-        model.save_weights(log_dir + 'trained_weights_final.h5')
+            epochs=50,
+            initial_epoch=0,
+            callbacks=[logging, checkpoint])
+    model.save_weights(f'{log_dir}trained_weights_stage_1.h5')
+
+    for i in range(len(model.layers)):
+        model.layers[i].trainable = True
+    model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+    print('Unfreeze all of the layers.')
+
+    batch_size = 4 # note that more GPU memory is required after unfreezing the body
+    print(
+        f'Train on {num_train} samples, val on {num_val} samples, with batch size {batch_size}.'
+    )
+    model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
+        steps_per_epoch=max(1, num_train//batch_size),
+        validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
+        validation_steps=max(1, num_val//batch_size),
+        epochs=100,
+        initial_epoch=50,
+        callbacks=[logging, checkpoint, reduce_lr, early_stopping])
+    model.save_weights(f'{log_dir}trained_weights_final.h5')
 
     # Further training if needed.
 
@@ -135,16 +135,20 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
         num_anchors//3, num_classes+5)) for l in range(3)]
 
     model_body = yolo_body(image_input, num_anchors//3, num_classes)
-    print('Create YOLOv3 model with {} anchors and {} classes.'.format(num_anchors, num_classes))
+    print(
+        f'Create YOLOv3 model with {num_anchors} anchors and {num_classes} classes.'
+    )
 
     if load_pretrained:
         model_body.load_weights(weights_path, by_name=True, skip_mismatch=True)
-        print('Load weights {}.'.format(weights_path))
+        print(f'Load weights {weights_path}.')
         if freeze_body in [1, 2]:
             # Freeze darknet53 body or freeze all but 3 output layers.
             num = (185, len(model_body.layers)-3)[freeze_body-1]
             for i in range(num): model_body.layers[i].trainable = False
-            print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
+            print(
+                f'Freeze the first {num} layers of total {len(model_body.layers)} layers.'
+            )
 
     # get output of second last layers and create bottleneck model of it
     out1=model_body.layers[246].output
@@ -153,7 +157,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
     bottleneck_model = Model([model_body.input, *y_true], [out1, out2, out3])
 
     # create last layer model of last layers from yolo model
-    in0 = Input(shape=bottleneck_model.output[0].shape[1:].as_list()) 
+    in0 = Input(shape=bottleneck_model.output[0].shape[1:].as_list())
     in1 = Input(shape=bottleneck_model.output[1].shape[1:].as_list())
     in2 = Input(shape=bottleneck_model.output[2].shape[1:].as_list())
     last_out0=model_body.layers[249](in0)
@@ -165,7 +169,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
         [*model_last.output, *y_true])
     last_layer_model = Model([in0,in1,in2, *y_true], model_loss_last)
 
-    
+
     model_loss = Lambda(yolo_loss, output_shape=(1,), name='yolo_loss',
         arguments={'anchors': anchors, 'num_classes': num_classes, 'ignore_thresh': 0.5})(
         [*model_body.output, *y_true])
@@ -180,7 +184,7 @@ def data_generator(annotation_lines, batch_size, input_shape, anchors, num_class
     while True:
         image_data = []
         box_data = []
-        for b in range(batch_size):
+        for _ in range(batch_size):
             if i==0 and random:
                 np.random.shuffle(annotation_lines)
             image, box = get_random_data(annotation_lines[i], input_shape, random=random)

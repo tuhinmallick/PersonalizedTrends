@@ -51,9 +51,7 @@ def similarity_model():
 
     x = dot([item1,item2],axes=1,normalize=True)
 
-    sim_model = Model(inputs=[item1,item2], outputs=x)
-    
-    return sim_model
+    return Model(inputs=[item1,item2], outputs=x)
 
 def rank_figure(byte_list):
     f, (ax0, ax1, ax2, ax3, ax4)=plt.subplots(1, 5, figsize=(25, 5))
@@ -84,7 +82,7 @@ def rank_figure(byte_list):
 if __name__ == '__main__':
     args = argsm()
     path = args.path
-    
+
 
 t1=time()
 dataset = np.load('../AmazonFashion6ImgPartitioned.npy',encoding='bytes',allow_pickle=True)
@@ -98,7 +96,7 @@ base_model = ResNet50(weights='imagenet')
 model = Model(inputs=base_model.input, outputs=base_model.get_layer('avg_pool').output)
 print('model load complete')
 
-    
+
 ######################
 # image features load
 ######################
@@ -124,20 +122,11 @@ for product in img_data:
 sim_model = similarity_model()
 pp=sim_model.predict([a,b],batch_size=2**15)
 
-item_score={}
-for n,i in enumerate(img_data):
-    item_score[n]= pp[n]
+item_score = {n: pp[n] for n, i in enumerate(img_data)}
 ranklist = heapq.nlargest(10, item_score, key=item_score.get)
 
 
 
-#######################################
-# print best similar product
-#######################################
-
-byte_list=[]
-for i in ranklist:
-    byte_list.append(meta[i][b'imgs'])
-
+byte_list = [meta[i][b'imgs'] for i in ranklist]
 rank_figure(byte_list)
     
