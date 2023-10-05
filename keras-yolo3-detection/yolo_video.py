@@ -69,7 +69,9 @@ if __name__ == '__main__':
         """
         print("Image detection mode")
         if "input" in FLAGS:
-            print(" Ignoring remaining command line arguments: " + FLAGS.input + "," + FLAGS.output)
+            print(
+                f" Ignoring remaining command line arguments: {FLAGS.input},{FLAGS.output}"
+            )
         detect_img(YOLO(**vars(FLAGS)))
     elif "input" in FLAGS:
         detect_video(YOLO(**vars(FLAGS)), FLAGS.input, FLAGS.output)

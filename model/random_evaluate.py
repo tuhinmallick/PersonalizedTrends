@@ -53,10 +53,7 @@ def eval_one_rating(idx):
     return (hr, ndcg)
 
 def getHitRatio(ranklist, gtItem):
-    for item in ranklist:
-        if item == gtItem:
-            return 1
-    return 0
+    return next((1 for item in ranklist if item == gtItem), 0)
 
 def getNDCG(ranklist, gtItem):
     for i in range(len(ranklist)):

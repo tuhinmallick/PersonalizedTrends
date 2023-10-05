@@ -69,9 +69,7 @@ def get_model(num_users, num_items, latent_dim, regs=[0, 0]):
 
     prediction = Dense(1, activation='sigmoid', kernel_initializer='lecun_uniform', name='prediction')(predict_vector)
 
-    model = Model(inputs=[user_input, item_input], outputs=prediction)
-
-    return model
+    return Model(inputs=[user_input, item_input], outputs=prediction)
 
 
 def get_train_instances(train,num_negatives):
@@ -83,7 +81,7 @@ def get_train_instances(train,num_negatives):
             item_input.append(i)
             labels.append(1)
         # negative instances
-            for t in range(num_negatives):
+            for _ in range(num_negatives):
                 j = np.random.randint(itemnum)
                 while j== i:
                     j = np.random.randint(itemnum)
@@ -106,16 +104,16 @@ if __name__ == '__main__':
 
     topK = 10
     evaluation_threads = 1  # mp.cpu_count()
-    print("GMF arguments: %s" % (args))
+    print(f"GMF arguments: {args}")
     model_out_file = '../dataset/pretrain/%s_GMF_%d_%d.h5' % (args.dataset, num_factors, time())
-   
+
     t1 = time()
     dataset = open('../dataset/amazon_clothing_fast_implicit.json',encoding='utf-8-sig').read()
     js=json.loads(dataset)
     train, valRatings, valNegatives,val_full_user, val_sum_Ratings, flatten_val_sum_Ratings, usernum,itemnum = js['train'],js['valRatings'],js['valNegatives'],js['val_full_user'],js['val_sum_Ratings'],js['flatten_val_sum_Ratings'], js['usernum'],js['itemnum']
     print("Load data done [%.1f s]. #user=%d, #item=%d"
           % (time() - t1, usernum, itemnum))
-    
+
     model = get_model(usernum, itemnum, num_factors, regs)
     if learner.lower() == "adagrad":
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
@@ -136,7 +134,7 @@ if __name__ == '__main__':
     best_hr, best_ndcg, best_iter = hr, ndcg, -1
     for epoch in range(epochs):
         t1 = time()
-        
+
         user_input, item_input, labels = get_train_instances(train,num_negatives)
 
         hist = model.fit([np.array(user_input), np.array(item_input)],
@@ -157,4 +155,4 @@ if __name__ == '__main__':
 
     print("End. Best Iteration %d:  HR = %.4f, NDCG = %.4f. " % (best_iter, best_hr, best_ndcg))
     if args.out > 0:
-        print("The best GMF model is saved to %s" % (model_out_file))
+        print(f"The best GMF model is saved to {model_out_file}")

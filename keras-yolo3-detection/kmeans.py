@@ -28,12 +28,10 @@ class YOLO_Kmeans:
         min_h_matrix = np.minimum(cluster_h_matrix, box_h_matrix)
         inter_area = np.multiply(min_w_matrix, min_h_matrix)
 
-        result = inter_area / (box_area + cluster_area - inter_area)
-        return result
+        return inter_area / (box_area + cluster_area - inter_area)
 
     def avg_iou(self, boxes, clusters):
-        accuracy = np.mean([np.max(self.iou(boxes, clusters), axis=1)])
-        return accuracy
+        return np.mean([np.max(self.iou(boxes, clusters), axis=1)])
 
     def kmeans(self, boxes, k, dist=np.median):
         box_number = boxes.shape[0]
@@ -58,30 +56,28 @@ class YOLO_Kmeans:
         return clusters
 
     def result2txt(self, data):
-        f = open("yolo_anchors.txt", 'w')
-        row = np.shape(data)[0]
-        for i in range(row):
-            if i == 0:
-                x_y = "%d,%d" % (data[i][0], data[i][1])
-            else:
-                x_y = ", %d,%d" % (data[i][0], data[i][1])
-            f.write(x_y)
-        f.close()
+        with open("yolo_anchors.txt", 'w') as f:
+            row = np.shape(data)[0]
+            for i in range(row):
+                if i == 0:
+                    x_y = "%d,%d" % (data[i][0], data[i][1])
+                else:
+                    x_y = ", %d,%d" % (data[i][0], data[i][1])
+                f.write(x_y)
 
     def txt2boxes(self):
-        f = open(self.filename, 'r')
-        dataSet = []
-        for line in f:
-            infos = line.split(" ")
-            length = len(infos)
-            for i in range(1, length):
-                width = int(infos[i].split(",")[2]) - \
-                    int(infos[i].split(",")[0])
-                height = int(infos[i].split(",")[3]) - \
-                    int(infos[i].split(",")[1])
-                dataSet.append([width, height])
-        result = np.array(dataSet)
-        f.close()
+        with open(self.filename, 'r') as f:
+            dataSet = []
+            for line in f:
+                infos = line.split(" ")
+                length = len(infos)
+                for i in range(1, length):
+                    width = int(infos[i].split(",")[2]) - \
+                            int(infos[i].split(",")[0])
+                    height = int(infos[i].split(",")[3]) - \
+                            int(infos[i].split(",")[1])
+                    dataSet.append([width, height])
+            result = np.array(dataSet)
         return result
 
     def txt2clusters(self):
@@ -89,7 +85,7 @@ class YOLO_Kmeans:
         result = self.kmeans(all_boxes, k=self.cluster_number)
         result = result[np.lexsort(result.T[0, None])]
         self.result2txt(result)
-        print("K anchors:\n {}".format(result))
+        print(f"K anchors:\n {result}")
         print("Accuracy: {:.2f}%".format(
             self.avg_iou(all_boxes, result) * 100))
 

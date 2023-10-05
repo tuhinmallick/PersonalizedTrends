@@ -58,10 +58,10 @@ def parse_args():
 def get_model(num_users, num_items, layers = [32,16], reg_layers=[0,0]):
     assert len(layers) == len(reg_layers)
     num_layer = len(layers)
-    
-    user_input = Input(shape=(1,), dtype='int32', name = 'user_input') 
+
+    user_input = Input(shape=(1,), dtype='int32', name = 'user_input')
     item_input = Input(shape=(1,), dtype='int32', name = 'item_input') 
-    
+
     MLP_Embedding_User = Embedding(input_dim = num_users, output_dim = int(layers[0]/2), name = 'user_embedding',
                                    embeddings_initializer = 'random_normal', 
                                    embeddings_regularizer = regularizers.l2(reg_layers[0]), 
@@ -81,11 +81,8 @@ def get_model(num_users, num_items, layers = [32,16], reg_layers=[0,0]):
         vector = layer(vector)
 
     prediction = Dense(1, activation='sigmoid', kernel_initializer='lecun_uniform', name = 'prediction')(vector)
-    
-    model = Model(inputs=[user_input, item_input],
-                  outputs=prediction)
 
-    return model
+    return Model(inputs=[user_input, item_input], outputs=prediction)
 
 
 def get_train_instances(train,num_negatives):
@@ -97,7 +94,7 @@ def get_train_instances(train,num_negatives):
             item_input.append(i)
             labels.append(1)
         # negative instances
-            for t in range(num_negatives):
+            for _ in range(num_negatives):
                 j = np.random.randint(itemnum)
                 while j== i:
                     j = np.random.randint(itemnum)
@@ -118,24 +115,24 @@ if __name__ == '__main__':
     batch_size = args.batch_size
     epochs = args.epochs
     verbose = args.verbose
-    
+
     topK = 10
-    print("MLP arguments: %s" % (args))
+    print(f"MLP arguments: {args}")
     model_out_file = '../dataset/pretrain/%s_MLP_%s_%d.h5' %(args.dataset, args.layers, time())
 
 
     """ Load data """
-    
+
     t1 = time()
     dataset = open('../dataset/amazon_clothing_fast_implicit.json',encoding='utf-8-sig').read()
     js=json.loads(dataset)
     train, valRatings, valNegatives,val_full_user, val_sum_Ratings, flatten_val_sum_Ratings, usernum,itemnum = js['train'],js['valRatings'],js['valNegatives'],js['val_full_user'],js['val_sum_Ratings'],js['flatten_val_sum_Ratings'], js['usernum'],js['itemnum']
     print("Load data done [%.1f s]. #user=%d, #item=%d"
           % (time() - t1, usernum, itemnum))
-    
-      
+
+
     model = get_model(usernum,itemnum, layers, reg_layers)
-    
+
     if learner.lower() == "adagrad": 
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
     elif learner.lower() == "rmsprop":
@@ -146,18 +143,18 @@ if __name__ == '__main__':
         model.compile(optimizer=SGD(lr=learning_rate), loss='binary_crossentropy')    
 
 
-    
+
     t1 = time()
     (hits, ndcgs) = evaluate_model(model, valRatings, val_full_user,flatten_val_sum_Ratings, val_sum_Ratings, topK)
     hr, ndcg = np.array(hits).mean(), np.array(ndcgs).mean()
     print('Init: HR = %.4f, NDCG = %.4f [%.1f s]' %(hr, ndcg, time()-t1))
-    
-       
+
+
     best_hr, best_ndcg, best_iter = hr, ndcg, -1
     for epoch in range(epochs):
         t1 = time()
         user_input, item_input, labels = get_train_instances(train,num_negatives)
-    
+
         hist = model.fit([np.array(user_input), np.array(item_input)], np.array(labels), 
                          batch_size=batch_size, epochs=1, verbose=0, shuffle=True)
 
@@ -176,4 +173,4 @@ if __name__ == '__main__':
 
     print("End. Best Iteration %d:  HR = %.4f, NDCG = %.4f. " %(best_iter, best_hr, best_ndcg))
     if args.out > 0:
-        print("The best MLP model is saved to %s" %(model_out_file))
+        print(f"The best MLP model is saved to {model_out_file}")

@@ -33,7 +33,7 @@ class YOLO(object):
         if n in cls._defaults:
             return cls._defaults[n]
         else:
-            return "Unrecognized attribute name '" + n + "'"
+            return f"Unrecognized attribute name '{n}'"
 
     def __init__(self, **kwargs):
         self.__dict__.update(self._defaults) # set up default values
@@ -69,14 +69,14 @@ class YOLO(object):
             self.yolo_model = load_model(model_path, compile=False)
         except:
             self.yolo_model = tiny_yolo_body(Input(shape=(None,None,3)), num_anchors//2, num_classes) \
-                if is_tiny_version else yolo_body(Input(shape=(None,None,3)), num_anchors//3, num_classes)
+                    if is_tiny_version else yolo_body(Input(shape=(None,None,3)), num_anchors//3, num_classes)
             self.yolo_model.load_weights(self.model_path) # make sure model, anchors and classes match
         else:
             assert self.yolo_model.layers[-1].output_shape[-1] == \
-                num_anchors/len(self.yolo_model.output) * (num_classes + 5), \
-                'Mismatch between model and given anchor and class sizes'
+                    num_anchors/len(self.yolo_model.output) * (num_classes + 5), \
+                    'Mismatch between model and given anchor and class sizes'
 
-        print('{} model, anchors, and classes loaded.'.format(model_path))
+        print(f'{model_path} model, anchors, and classes loaded.')
 
         # Generate colors for drawing bounding boxes.
         hsv_tuples = [(x / len(self.class_names), 1., 1.)
@@ -123,7 +123,7 @@ class YOLO(object):
                 K.learning_phase(): 0
             })
 
-        print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
+        print(f'Found {len(out_boxes)} boxes for img')
 
         for i, c in reversed(list(enumerate(out_classes))):
             predicted_class = self.class_names[c]
@@ -153,7 +153,7 @@ def detect_video(yolo, video_path, output_path=""):
     video_fps       = vid.get(cv2.CAP_PROP_FPS)
     video_size      = (int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)),
                         int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    isOutput = True if output_path != "" else False
+    isOutput = output_path != ""
     if isOutput:
         print("!!! TYPE:", type(output_path), type(video_FourCC), type(video_fps), type(video_size))
         out = cv2.VideoWriter(output_path, video_FourCC, video_fps, video_size)
@@ -173,7 +173,7 @@ def detect_video(yolo, video_path, output_path=""):
         curr_fps = curr_fps + 1
         if accum_time > 1:
             accum_time = accum_time - 1
-            fps = "FPS: " + str(curr_fps)
+            fps = f"FPS: {str(curr_fps)}"
             curr_fps = 0
         cv2.putText(result, text=fps, org=(3, 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=0.50, color=(255, 0, 0), thickness=2)

@@ -43,28 +43,22 @@ def evaluate_model(testRatings, testNegatives, K, num_thread, result):
                         
 
 def eval_one_rating(idx):
-    rating = _testRatings[idx]  
-    items = _testNegatives[idx]   
-    gtItem = rating[1]  
+    rating = _testRatings[idx]
+    items = _testNegatives[idx]
+    gtItem = rating[1]
     items.append(gtItem)
     rank = copy(items)
     items.pop()
     random.shuffle(rank)
-    map_item_score = {}
-    for i in rank:
-        map_item_score[i] = _result[i]
-          
+    map_item_score = {i: _result[i] for i in rank}
     # Evaluate top rank list
-    ranklist = heapq.nlargest(_K, map_item_score, key=map_item_score.get) 
+    ranklist = heapq.nlargest(_K, map_item_score, key=map_item_score.get)
     hr = getHitRatio(ranklist, gtItem)
     ndcg = getNDCG(ranklist, gtItem)
     return (hr, ndcg) 
 
 def getHitRatio(ranklist, gtItem):
-    for item in ranklist:
-        if item == gtItem:
-            return 1
-    return 0
+    return next((1 for item in ranklist if item == gtItem), 0)
 
 def getNDCG(ranklist, gtItem):
     for i in range(len(ranklist)):
